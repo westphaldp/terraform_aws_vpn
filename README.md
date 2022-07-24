@@ -28,4 +28,5 @@ Variables
 | `aws_region` | `us-east-1` | Region where resources should be deployed. |
 | `vpn_site_ip` | undefined | IP address of remote site VPN endpoint. |
 | `vpn_bgp_asn` | 65000 | ASN for BGP used for the VPN connection.<br>**Note**: This is not relevant to this configuration as static routes are being utilized. |
+| `vpn_routes` | `[ "192.168.1.0/24" ]` | List of subnets available on the remote end of the VPN connection. |
 | `aws_ssh_key` | undefined | SSH public key associated with EC2 instances. |

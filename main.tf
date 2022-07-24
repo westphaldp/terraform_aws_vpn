@@ -30,6 +30,14 @@ variable "vpn_bgp_asn" {
   nullable = false
 }
 
+variable "vpn_routes" {
+  type = list(string)
+  default = [
+    "192.168.1.0/24"
+  ]
+  nullable = false
+}
+
 variable "aws_ssh_key" {
   type     = string
   nullable = false
@@ -87,6 +95,14 @@ resource "aws_default_route_table" "main" {
     gateway_id = aws_internet_gateway.igw00.id
   }
 
+  dynamic "route" {
+    for_each = var.vpn_routes
+    content {
+      cidr_block = route.value
+      gateway_id = aws_vpn_gateway.vgw00.id
+    }
+  }
+
   tags = {
     Name = "${var.tag_environment}-rtb_main"
   }
@@ -123,26 +139,10 @@ resource "aws_vpn_connection" "vpn00" {
   }
 }
 
-resource "aws_vpn_connection_route" "vpn_route00" {
-  destination_cidr_block = "10.1.0.0/16"
+resource "aws_vpn_connection_route" "vpn_route" {
+  for_each               = toset(var.vpn_routes)
+  destination_cidr_block = each.key
   vpn_connection_id      = aws_vpn_connection.vpn00.id
-}
-
-resource "aws_vpn_connection_route" "vpn_route01" {
-  destination_cidr_block = "192.168.0.0/16"
-  vpn_connection_id      = aws_vpn_connection.vpn00.id
-}
-
-resource "aws_route" "rtb00_vpn00_route00" {
-  route_table_id = aws_vpc.vpc.default_route_table_id
-  destination_cidr_block = "10.1.0.0/16"
-  gateway_id             = aws_vpn_gateway.vgw00.id
-}
-
-resource "aws_route" "rtb00_vpn00_route01" {
-  route_table_id = aws_vpc.vpc.default_route_table_id
-  destination_cidr_block = "192.168.2.0/24"
-  gateway_id             = aws_vpn_gateway.vgw00.id
 }
 
 ## Network Access Controls
