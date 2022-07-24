@@ -79,8 +79,8 @@ resource "aws_internet_gateway" "igw00" {
   }
 }
 
-resource "aws_route_table" "rtb00" {
-  vpc_id = aws_vpc.vpc.id
+resource "aws_default_route_table" "main" {
+  default_route_table_id = aws_vpc.vpc.default_route_table_id
 
   route {
     cidr_block = "0.0.0.0/0"
@@ -88,20 +88,9 @@ resource "aws_route_table" "rtb00" {
   }
 
   tags = {
-    Name = "${var.tag_environment}-rtb00"
+    Name = "${var.tag_environment}-rtb_main"
   }
 }
-
-resource "aws_route_table_association" "rtb00_subnet00" {
-  route_table_id = aws_route_table.rtb00.id
-  subnet_id      = aws_subnet.subnet00.id
-}
-
-# Not entirely sure the gateway association is the right thing to do. (Gateway route tables)[https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html#gateway-route-tables]
-#resource "aws_route_table_association" "rtb00_igw00" {
-#  route_table_id = aws_route_table.rtb00.id
-#  gateway_id     = aws_internet_gateway.igw00.id
-#}
 
 ## VPN Connections
 
@@ -145,18 +134,31 @@ resource "aws_vpn_connection_route" "vpn_route01" {
 }
 
 resource "aws_route" "rtb00_vpn00_route00" {
-  route_table_id         = aws_route_table.rtb00.id
+  route_table_id = aws_vpc.vpc.default_route_table_id
   destination_cidr_block = "10.1.0.0/16"
   gateway_id             = aws_vpn_gateway.vgw00.id
 }
 
 resource "aws_route" "rtb00_vpn00_route01" {
-  route_table_id         = aws_route_table.rtb00.id
+  route_table_id = aws_vpc.vpc.default_route_table_id
   destination_cidr_block = "192.168.2.0/24"
   gateway_id             = aws_vpn_gateway.vgw00.id
 }
 
 ## Network Access Controls
+
+# by default, deny all traffic outside of the subnet
+resource "aws_default_network_acl" "default" {
+  default_network_acl_id = aws_vpc.vpc.default_network_acl_id
+
+  tags = {
+    Name = "${var.tag_environment}-nacl_default"
+  }
+
+  lifecycle {
+    ignore_changes = [subnet_ids]
+  }
+}
 
 resource "aws_network_acl" "nacl00" {
   vpc_id = aws_vpc.vpc.id
@@ -214,6 +216,15 @@ resource "aws_network_acl" "nacl00" {
 resource "aws_network_acl_association" "nacl00_subnet00" {
   network_acl_id = aws_network_acl.nacl00.id
   subnet_id      = aws_subnet.subnet00.id
+}
+
+# by default, don't allow any traffic
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.vpc.id
+
+  tags = {
+    Name = "${var.tag_environment}-sg_default"
+  }
 }
 
 resource "aws_security_group" "outbound_all_inbound_ssh" {
