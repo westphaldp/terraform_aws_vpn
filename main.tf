@@ -255,13 +255,92 @@ resource "aws_security_group" "outbound_all_inbound_ssh" {
 
 # EC2 Instances
 
+data "aws_ami" "centos-7-marketplace" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["CentOS Linux 7 x86_64 HVM EBS ENA *"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  owners = ["aws-marketplace"]
+}
+
+data "aws_ami" "centos-7-official" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["CentOS 7*"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  owners = ["125523088429"]
+}
+
+data "aws_ami" "rocky-8-marketplace" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["Rocky-8-ec2-*"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  owners = ["aws-marketplace"]
+}
+
+data "aws_ami" "rocky-8-official" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["Rocky-8-ec2-*"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  owners = ["792107900819"]
+}
+
 resource "aws_instance" "jumphost00" {
-  # CentOS 7
-  #ami                         = "ami-011939b19c6bd1492"
-  # Rocky-8-ec2-8.6-20220515.0.x86_64-d6577ceb-8ea8-4e0e-84c6-f098fc302e82
-  ami = "ami-004b161a1cceb1ceb"
-  # Rocky-9-EC2-9.0-20220706.0.x86_64-3f230a17-9877-4b16-aa5e-b1ff34ab206b
-  #ami                         = "ami-0ae4df53d376e5d3b"
+  ami                         = data.aws_ami.rocky-8-official.id
   instance_type               = "t3a.nano"
   ebs_optimized               = true
   key_name                    = aws_key_pair.ssh_key.key_name
