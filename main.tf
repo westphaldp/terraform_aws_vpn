@@ -19,8 +19,19 @@ variable "aws_region" {
   default = "us-east-1"
 }
 
+variable "vpn_site_ip" {
+  type     = string
+  nullable = false
+}
+
+variable "vpn_bgp_asn" {
+  type     = number
+  default  = 65000
+  nullable = false
+}
+
 variable "aws_ssh_key" {
-  type = string
+  type     = string
   nullable = false
 }
 
@@ -35,6 +46,8 @@ provider "aws" {
   }
 }
 
+
+# Networking
 
 resource "aws_key_pair" "ssh_key" {
   key_name   = "${var.tag_environment}-ssh_key"
@@ -66,7 +79,7 @@ resource "aws_internet_gateway" "igw00" {
   }
 }
 
-resource "aws_route_table" "rt00" {
+resource "aws_route_table" "rtb00" {
   vpc_id = aws_vpc.vpc.id
 
   route {
@@ -75,20 +88,75 @@ resource "aws_route_table" "rt00" {
   }
 
   tags = {
-    Name = "${var.tag_environment}-rt00"
+    Name = "${var.tag_environment}-rtb00"
   }
 }
 
-resource "aws_route_table_association" "rt00_subnet00" {
-  route_table_id = aws_route_table.rt00.id
+resource "aws_route_table_association" "rtb00_subnet00" {
+  route_table_id = aws_route_table.rtb00.id
   subnet_id      = aws_subnet.subnet00.id
 }
 
 # Not entirely sure the gateway association is the right thing to do. (Gateway route tables)[https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html#gateway-route-tables]
-#resource "aws_route_table_association" "rt00_igw00" {
-#  route_table_id = aws_route_table.rt00.id
+#resource "aws_route_table_association" "rtb00_igw00" {
+#  route_table_id = aws_route_table.rtb00.id
 #  gateway_id     = aws_internet_gateway.igw00.id
 #}
+
+## VPN Connections
+
+resource "aws_vpn_gateway" "vgw00" {
+  vpc_id = aws_vpc.vpc.id
+
+  tags = {
+    Name = "${var.tag_environment}-vgw00"
+  }
+}
+
+resource "aws_customer_gateway" "cgw00" {
+  bgp_asn    = var.vpn_bgp_asn
+  ip_address = var.vpn_site_ip
+  type       = "ipsec.1"
+
+  tags = {
+    Name = "${var.tag_environment}-cgw00"
+  }
+}
+
+resource "aws_vpn_connection" "vpn00" {
+  vpn_gateway_id      = aws_vpn_gateway.vgw00.id
+  customer_gateway_id = aws_customer_gateway.cgw00.id
+  type                = "ipsec.1"
+  static_routes_only  = true
+
+  tags = {
+    Name = "${var.tag_environment}-vpn00"
+  }
+}
+
+resource "aws_vpn_connection_route" "vpn_route00" {
+  destination_cidr_block = "10.1.0.0/16"
+  vpn_connection_id      = aws_vpn_connection.vpn00.id
+}
+
+resource "aws_vpn_connection_route" "vpn_route01" {
+  destination_cidr_block = "192.168.0.0/16"
+  vpn_connection_id      = aws_vpn_connection.vpn00.id
+}
+
+resource "aws_route" "rtb00_vpn00_route00" {
+  route_table_id         = aws_route_table.rtb00.id
+  destination_cidr_block = "10.1.0.0/16"
+  gateway_id             = aws_vpn_gateway.vgw00.id
+}
+
+resource "aws_route" "rtb00_vpn00_route01" {
+  route_table_id         = aws_route_table.rtb00.id
+  destination_cidr_block = "192.168.2.0/24"
+  gateway_id             = aws_vpn_gateway.vgw00.id
+}
+
+## Network Access Controls
 
 resource "aws_network_acl" "nacl00" {
   vpc_id = aws_vpc.vpc.id
@@ -173,11 +241,14 @@ resource "aws_security_group" "outbound_all_inbound_ssh" {
   }
 }
 
+
+# EC2 Instances
+
 resource "aws_instance" "jumphost00" {
   # CentOS 7
   #ami                         = "ami-011939b19c6bd1492"
   # Rocky-8-ec2-8.6-20220515.0.x86_64-d6577ceb-8ea8-4e0e-84c6-f098fc302e82
-  ami                         = "ami-004b161a1cceb1ceb"
+  ami = "ami-004b161a1cceb1ceb"
   # Rocky-9-EC2-9.0-20220706.0.x86_64-3f230a17-9877-4b16-aa5e-b1ff34ab206b
   #ami                         = "ami-0ae4df53d376e5d3b"
   instance_type               = "t3a.nano"

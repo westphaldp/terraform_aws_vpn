@@ -26,4 +26,6 @@ Variables
 | -------- | ------- | ----------- |
 | `tag_environment` | `terraform_aws_vpn` | `Envirnoment` tag added to every resource defined.<br>**Note**: This tag will not be defined on resources that are implicitly created, such as the default route table created for a new VPC. |
 | `aws_region` | `us-east-1` | Region where resources should be deployed. |
+| `vpn_site_ip` | undefined | IP address of remote site VPN endpoint. |
+| `vpn_bgp_asn` | 65000 | ASN for BGP used for the VPN connection.<br>**Note**: This is not relevant to this configuration as static routes are being utilized. |
 | `aws_ssh_key` | undefined | SSH public key associated with EC2 instances. |
